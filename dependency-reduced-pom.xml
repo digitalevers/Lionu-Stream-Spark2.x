@@ -79,12 +79,54 @@
       </plugin>
     </plugins>
   </build>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.11</artifactId>
+      <version>2.4.7</version>
+      <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>univocity-parsers</artifactId>
+          <groupId>com.univocity</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>spark-sketch_2.11</artifactId>
+          <groupId>org.apache.spark</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>spark-catalyst_2.11</artifactId>
+          <groupId>org.apache.spark</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>orc-core</artifactId>
+          <groupId>org.apache.orc</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>orc-mapreduce</artifactId>
+          <groupId>org.apache.orc</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>parquet-column</artifactId>
+          <groupId>org.apache.parquet</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>parquet-hadoop</artifactId>
+          <groupId>org.apache.parquet</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>arrow-vector</artifactId>
+          <groupId>org.apache.arrow</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
   <properties>
-    <maven.compiler.target>17</maven.compiler.target>
-    <scalaVersion>2.13</scalaVersion>
-    <maven.compiler.source>17</maven.compiler.source>
+    <sparkVersion>2.4.7</sparkVersion>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <sparkVersion>3.5.4</sparkVersion>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
+    <scalaVersion>2.11</scalaVersion>
   </properties>
 </project>
 

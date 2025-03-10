@@ -113,7 +113,7 @@ object ResultJsonProtocol extends DefaultJsonProtocol {
       case n: Long => JsNumber(n)
       case n: Double => JsNumber(n)
       case b: Boolean => JsBoolean(b)
-      case m: Map[String, _] => JsObject(m.mapValues(write))
+      case m: Map[String, _] => JsObject(m.mapValues(write).toMap)
       case l: List[_] => JsArray(l.map(write))
       case _ => JsNull
     }
