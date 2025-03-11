@@ -1,6 +1,7 @@
 /**
  * sparkStream重构版
  */
+import com.typesafe.config.ConfigFactory
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
@@ -17,9 +18,11 @@ import scala.collection.mutable
 import util.control.Breaks._
 import spray.json._
 
+import java.io.{File, FileInputStream}
 import java.time.{LocalDate, LocalDateTime}
 import java.time.format.DateTimeFormatter
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.JavaConverters._
 
 //定义对应json的实体类
 //case class redisDeviceInfo
@@ -171,12 +174,28 @@ object sparkStreamReConstruction {
   def main(args: Array[String]): Unit = {
     val sparkConf  = new SparkConf().setMaster("local[*]").setAppName("sparkStream")
     val streamingContext = new StreamingContext(sparkConf,Seconds(5)) //spark3.4弃用
-    //读取配置文件
-    val prop = new Properties();
-    // 使用ClassLoader加载properties配置文件生成对应的输入流
+    //方式一 将properties文件打入jar包  读取配置文件 使用ClassLoader加载properties配置文件生成对应的输入流
+    /*val prop = new Properties();
     val in = sparkStreamReConstruction.getClass.getClassLoader.getResourceAsStream("application.properties");
-    // 使用properties对象加载输入流
-    prop.load(in)
+    prop.load(in)*/
+
+    //方式二 properties配置不打进jar包 使用外部传入的方式
+    val prop = new Properties();
+    val config = ConfigFactory.parseFile(new File("../common_config/application.properties"))
+    val entries = config.entrySet().asScala
+    for (entry <- entries) {
+      val key = entry.getKey
+      val value = entry.getValue.unwrapped.toString
+      //println(s"$key = $value")
+      prop.setProperty(key, value)
+    }
+
+    //方式三
+    /*val bs = scala.io.Source.fromFile("../common_config/application.properties")
+    bs.getLines().foreach(line => {
+      println("==========" + line)
+    })*/
+
     /**
      * 流计算设备激活信息
      */

@@ -5,8 +5,9 @@ import java.util.Properties
 import javax.sql.DataSource
 import scala.collection.mutable.ArrayBuffer
 import org.slf4j.LoggerFactory
+import com.typesafe.config.ConfigFactory
 
-import java.io.{FileInputStream, InputStream}
+import java.io.{File, FileInputStream, InputStream}
 
 object JDBCutil {
   //初始化连接池
@@ -16,18 +17,27 @@ object JDBCutil {
   private def init() = {
     //读取配置文件
     val prop = new Properties()
-    // 使用ClassLoader加载properties配置文件生成对应的输入流
-    val in = JDBCutil.getClass.getClassLoader.getResourceAsStream("application.properties")
+    //方式一 将properties文件打入jar包 使用ClassLoader加载properties配置文件生成对应的输入流
+    /*val in = JDBCutil.getClass.getClassLoader.getResourceAsStream("application.properties")
     // 使用properties对象加载输入流
     prop.load(in)
-
     val properties = new Properties()
     properties.setProperty("driverClassName", prop.getProperty("mysql.drive"))
     properties.setProperty("url", "jdbc:mysql://" + prop.getProperty("mysql.hostname") + ":" + prop.getProperty("mysql.port") + "/" + prop.getProperty("mysql.database"))
     properties.setProperty("username", prop.getProperty("mysql.user"))
     properties.setProperty("password", prop.getProperty("mysql.password"))
+    properties.setProperty("maxActive", "50")*/
+
+    //方式二 properties配置不打进jar包 使用外部传入的方式 需要使用parseFile方法 使用load无效 而且执行目录是shell所在的目录 不是 jar 包所在的目录
+    val config = ConfigFactory.parseFile(new File("../common_config/application.properties"))
+    val properties = new Properties()
+    properties.setProperty("driverClassName", config.getString("mysql.drive"))
+    properties.setProperty("url", "jdbc:mysql://" + config.getString("mysql.hostname") + ":" + config.getString("mysql.port") + "/" + config.getString("mysql.database"))
+    properties.setProperty("username", config.getString("mysql.user"))
+    properties.setProperty("password", config.getString("mysql.password"))
     properties.setProperty("maxActive", "50")
-    ///println(properties.getProperty("url"))
+
+    //println(properties.getProperty("url"))
     DruidDataSourceFactory.createDataSource(properties)
 
   }
