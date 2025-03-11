@@ -6,12 +6,14 @@ import javax.sql.DataSource
 import scala.collection.mutable.ArrayBuffer
 import org.slf4j.LoggerFactory
 
+import java.io.{FileInputStream, InputStream}
+
 object JDBCutil {
   //初始化连接池
   private val dataSource: DataSource = init()
 
   //初始化连接池方法
-  private def init(): DataSource = {
+  private def init() = {
     //读取配置文件
     val prop = new Properties()
     // 使用ClassLoader加载properties配置文件生成对应的输入流
@@ -21,12 +23,13 @@ object JDBCutil {
 
     val properties = new Properties()
     properties.setProperty("driverClassName", prop.getProperty("mysql.drive"))
-    properties.setProperty("url", prop.getProperty("mysql.url"))
+    properties.setProperty("url", "jdbc:mysql://" + prop.getProperty("mysql.hostname") + ":" + prop.getProperty("mysql.port") + "/" + prop.getProperty("mysql.database"))
     properties.setProperty("username", prop.getProperty("mysql.user"))
     properties.setProperty("password", prop.getProperty("mysql.password"))
     properties.setProperty("maxActive", "50")
-
+    ///println(properties.getProperty("url"))
     DruidDataSourceFactory.createDataSource(properties)
+
   }
 
   //获取mysql连接
