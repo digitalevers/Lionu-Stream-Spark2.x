@@ -186,7 +186,7 @@ object sparkStreamReConstruction {
     for (entry <- entries) {
       val key = entry.getKey
       val value = entry.getValue.unwrapped.toString
-      println(s"$key = $value")
+      //println(s"$key = $value")
       prop.setProperty(key, value)
     }
 
