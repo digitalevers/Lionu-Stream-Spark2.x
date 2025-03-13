@@ -181,12 +181,12 @@ object sparkStreamReConstruction {
 
     //方式二 properties配置不打进jar包 使用外部传入的方式
     val prop = new Properties();
-    val config = ConfigFactory.parseFile(new File("../common_config/application.properties"))
+    val config = ConfigFactory.parseFile(new File("./common_config/application.properties"))
     val entries = config.entrySet().asScala
     for (entry <- entries) {
       val key = entry.getKey
       val value = entry.getValue.unwrapped.toString
-      //println(s"$key = $value")
+      println(s"$key = $value")
       prop.setProperty(key, value)
     }
 
