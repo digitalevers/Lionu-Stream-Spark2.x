@@ -204,7 +204,7 @@ object sparkStreamReConstruction {
     val offset:mutable.Map[TopicPartition, Long] = mutable.Map()
     offset += (topicPartition->0L)*/
 
-    // 1.激活topic
+    // 1.设备激活 topic
     val launchKafkaParams = this.getKafkaParams(prop,"launch")
     //println(launchKafkaParams)
     val kafkaDStreamForLaunch = KafkaUtils.createDirectStream(streamingContext, LocationStrategies.PreferConsistent, Subscribe[String,String](launchKafkaParams._1, launchKafkaParams._2))
@@ -244,7 +244,7 @@ object sparkStreamReConstruction {
       }
     )
 
-    // 2. 注册topic
+    // 2. 设备注册 topic
     val regKafkaParams = this.getKafkaParams(prop, "reg")
     //println(launchKafkaParams)
     val kafkaDStreamForReg = KafkaUtils.createDirectStream(streamingContext, LocationStrategies.PreferConsistent, Subscribe[String, String](regKafkaParams._1, regKafkaParams._2))
@@ -284,7 +284,7 @@ object sparkStreamReConstruction {
       }
     )
 
-    // 3.付费topic
+    // 3.设备付费 topic
     val payKafkaParams = this.getKafkaParams(prop, "pay")
     //println(payKafkaParams)
     val kafkaDStreamForPay = KafkaUtils.createDirectStream(streamingContext, LocationStrategies.PreferConsistent, Subscribe[String, String](payKafkaParams._1, payKafkaParams._2))
@@ -386,13 +386,13 @@ object sparkStreamReConstruction {
   private def isNewAndroidDeviceInMySQL(deviceMap: Map[String, Any]): String = {
     val metric = getRedisMetric(deviceMap("os").toString)
     val connection: Connection = JDBCutil.getConnection
-    val activeExistSql = "SELECT active_time,plan_id,channel_id FROM log_android_active WHERE oaid_md5=? ORDER BY active_time LIMIT 0,1"
+    val activeExistSql = "SELECT active_time,plan_id,channel_id FROM lionu_log_android_active WHERE oaid_md5=? ORDER BY active_time LIMIT 0,1"
     val activeRes = JDBCutil.executeQuery(connection, activeExistSql, Array(deviceMap(metric)))
     if (activeRes.isEmpty) {
       //新设备
       null
     } else {
-      val launchExistSql = "SELECT launch_time FROM log_android_launch WHERE oaid_md5=? ORDER BY launch_time DESC LIMIT 0,1"
+      val launchExistSql = "SELECT launch_time FROM lionu_log_android_launch WHERE oaid_md5=? ORDER BY launch_time DESC LIMIT 0,1"
       val launchRes = JDBCutil.executeQuery(connection, launchExistSql, Array(deviceMap(metric)))
       if (launchRes.isEmpty) {
         throw new Exception("有激活信息但是未查到启动信息")
@@ -413,13 +413,13 @@ object sparkStreamReConstruction {
     val metric = getRedisMetric(deviceMap("os").toString)
     val connection: Connection = JDBCutil.getConnection
 
-    val activeExistSql = "SELECT active_time,plan_id,channel_id FROM log_ios_active WHERE uuid_md5=? ORDER BY active_time LIMIT 0,1"
+    val activeExistSql = "SELECT active_time,plan_id,channel_id FROM lionu_log_ios_active WHERE uuid_md5=? ORDER BY active_time LIMIT 0,1"
     val activeRes = JDBCutil.executeQuery(connection, activeExistSql, Array(deviceMap(metric)))
     if (activeRes.isEmpty) {
       //新设备
       null
     } else {
-      val launchExistSql = "SELECT launch_time FROM log_ios_launch WHERE uuid_md5=? ORDER BY launch_time DESC LIMIT 0,1"
+      val launchExistSql = "SELECT launch_time FROM lionu_log_ios_launch WHERE uuid_md5=? ORDER BY launch_time DESC LIMIT 0,1"
       val launchRes = JDBCutil.executeQuery(connection, launchExistSql, Array(deviceMap(metric)))
       if (launchRes.isEmpty) {
         throw new Exception("有激活信息但是未查到启动信息")
@@ -453,11 +453,11 @@ object sparkStreamReConstruction {
     val NOW = this.getNOW
     //查找条件优先级 imei->oaid->android_id->mac->ip 调换SQL语句顺序即可调整查找条件优先级顺序
     val sqls = mutable.LinkedHashMap[String, String](
-      "imei" -> "SELECT  * FROM log_android_click_data WHERE imei_md5=?",
-      "oaid" -> "SELECT  * FROM log_android_click_data WHERE oaid_md5=?",
-      "androidid" -> "SELECT  * FROM log_android_click_data WHERE androidid_md5=?",
-      //"mac" -> "SELECT  * FROM log_android_click_data WHERE mac_md5=?",
-      "externalip" -> "SELECT  * FROM log_android_click_data WHERE ip=?"
+      "imei" -> "SELECT  * FROM lionu_log_android_click_data WHERE imei_md5=?",
+      "oaid" -> "SELECT  * FROM lionu_log_android_click_data WHERE oaid_md5=?",
+      "androidid" -> "SELECT  * FROM lionu_log_android_click_data WHERE androidid_md5=?",
+      //"mac" -> "SELECT  * FROM lionu_log_android_click_data WHERE mac_md5=?",
+      "externalip" -> "SELECT  * FROM lionu_log_android_click_data WHERE ip=?"
     )
     ////////////////新设备
     val advAscribeInfo: mutable.Map[String, String] = mutable.Map[String, String](deviceMap.toSeq: _*) //immutable.map 转 mutable.map
@@ -488,13 +488,13 @@ object sparkStreamReConstruction {
       }
     }
     //写入激活表
-    val insertActiveSql = "INSERT INTO log_android_active(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, active_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    val insertActiveSql = "INSERT INTO lionu_log_android_active(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, active_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, insertActiveSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     //println(insertActiveSql)
     //println(advAscribeInfo)
 
     //写入启动表
-    val launchLogSql = "INSERT INTO log_android_launch(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    val launchLogSql = "INSERT INTO lionu_log_android_launch(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, launchLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     connection.close()
 
@@ -526,10 +526,10 @@ object sparkStreamReConstruction {
     val NOW = this.getNOW
     //查找条件优先级 ip->idfa->caid1->caid2
     val sqls = Map(
-      "external_ip" -> "SELECT  * FROM log_ios_click_data WHERE external_ip=?",
-      "idfa" -> "SELECT  * FROM log_ios_click_data WHERE idfa_md5=?"
-      //"caid1"-> "SELECT  * FROM log_ios_click_data WHERE CAID1=?",
-      //"caid2"-> "SELECT  * FROM log_ios_click_data WHERE CAID2=?"
+      "external_ip" -> "SELECT  * FROM lionu_log_ios_click_data WHERE external_ip=?",
+      "idfa" -> "SELECT  * FROM lionu_log_ios_click_data WHERE idfa_md5=?"
+      //"caid1"-> "SELECT  * FROM lionu_log_ios_click_data WHERE CAID1=?",
+      //"caid2"-> "SELECT  * FROM lionu_log_ios_click_data WHERE CAID2=?"
     )
     ////////////////新设备
     val advAscribeInfo: mutable.Map[String, String] = mutable.Map[String, String](deviceMap.toSeq: _*) //immutable.map 转 mutable.map
@@ -569,11 +569,11 @@ object sparkStreamReConstruction {
       }
     }
     //写入激活表
-    val insertActiveSql = "INSERT INTO log_ios_active(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, active_time) VALUES(?,?,?,?,?,?,?,?,?)"
+    val insertActiveSql = "INSERT INTO lionu_log_ios_active(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, active_time) VALUES(?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, insertActiveSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
 
     //写入启动表
-    val launchLogSql = "INSERT INTO log_ios_launch(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?)"
+    val launchLogSql = "INSERT INTO lionu_log_ios_launch(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, launchLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"),advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     connection.close()
 
@@ -616,7 +616,7 @@ object sparkStreamReConstruction {
     val connection: Connection = JDBCutil.getConnection
     //查询是否当天首次登录
     var newtoday = 0
-    val todayLaunchSql = "SELECT  * FROM log_android_launch WHERE appid=? AND oaid_md5=? AND launch_time>=? AND launch_time<=?"
+    val todayLaunchSql = "SELECT  * FROM lionu_log_android_launch WHERE appid=? AND oaid_md5=? AND launch_time>=? AND launch_time<=?"
     val todayLaunchPrep = connection.prepareStatement(todayLaunchSql)
     todayLaunchPrep.setString(1, advAscribeInfo("appid"))
     todayLaunchPrep.setString(2, advAscribeInfo("oaid"))
@@ -628,7 +628,7 @@ object sparkStreamReConstruction {
     }
 
     //写入启动表
-    val insertLaunchSql = "INSERT INTO log_android_launch(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    val insertLaunchSql = "INSERT INTO lionu_log_android_launch(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, insertLaunchSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     connection.close()
     //写入redis  key:appid-md5(oaid)  value:json
@@ -662,7 +662,7 @@ object sparkStreamReConstruction {
     //println(advAscribeInfo)
     //查询是否当天首次登录
     var newtoday = 0
-    val todayLaunchSql = "SELECT  * FROM log_ios_launch WHERE appid=? AND uuid_md5=? AND launch_time>=? AND launch_time<=?"
+    val todayLaunchSql = "SELECT  * FROM lionu_log_ios_launch WHERE appid=? AND uuid_md5=? AND launch_time>=? AND launch_time<=?"
     val todayLaunchPrep = connection.prepareStatement(todayLaunchSql)
     todayLaunchPrep.setString(1, advAscribeInfo("appid"))
     todayLaunchPrep.setString(2, advAscribeInfo("uuid"))
@@ -674,7 +674,7 @@ object sparkStreamReConstruction {
     }
 
     //写入启动表
-    val launchLogSql = "INSERT INTO log_ios_launch(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?)"
+    val launchLogSql = "INSERT INTO lionu_log_ios_launch(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, launch_time) VALUES(?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, launchLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     connection.close()
     //写入redis  key:appid-oaid  value:json
@@ -717,16 +717,16 @@ object sparkStreamReConstruction {
     //val connection: Connection = DriverManager.getConnection(prop.getProperty("mysql.url"), prop.getProperty("mysql.user"), prop.getProperty("mysql.password"))
     val connection: Connection = JDBCutil.getConnection
     //写注册设备表
-    val regSql = "INSERT INTO log_android_reg(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    val regSql = "INSERT INTO lionu_log_android_reg(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, regSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     //写去重注册表
-    val regExistSql = "SELECT  * FROM log_android_regonly WHERE appid=? AND oaid_md5=?"
+    val regExistSql = "SELECT  * FROM lionu_log_android_regonly WHERE appid=? AND oaid_md5=?"
     val regExistPrep = connection.prepareStatement(regExistSql)
     regExistPrep.setString(1, advAscribeInfo("appid"))
     regExistPrep.setString(2, advAscribeInfo("oaid"))
     val res = regExistPrep.executeQuery
     if (!res.next()) {
-      val regSql = "INSERT INTO log_android_regonly(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
+      val regSql = "INSERT INTO lionu_log_android_regonly(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?,?)"
       JDBCutil.executeUpdate(connection, regSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
       newReg = 1
     }
@@ -752,17 +752,17 @@ object sparkStreamReConstruction {
     //val connection: Connection = DriverManager.getConnection(prop.getProperty("mysql.url"), prop.getProperty("mysql.user"), prop.getProperty("mysql.password"))
     val connection: Connection = JDBCutil.getConnection
     //写入注册设备表
-    val launchLogSql = "INSERT INTO log_ios_reg(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?)"
+    val launchLogSql = "INSERT INTO lionu_log_ios_reg(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, launchLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
     //写去重注册表
-    val regExistSql = "SELECT  * FROM log_ios_regonly WHERE appid=? AND uuid_md5=?"
+    val regExistSql = "SELECT  * FROM lionu_log_ios_regonly WHERE appid=? AND uuid_md5=?"
     val regExistPrep = connection.prepareStatement(regExistSql)
     regExistPrep.setString(1, advAscribeInfo("appid"))
     regExistPrep.setString(2, advAscribeInfo("uuid"))
     val res = regExistPrep.executeQuery
     if (!res.next()) {
       println(advAscribeInfo)
-      val regSql = "INSERT INTO log_ios_regonly(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?)"
+      val regSql = "INSERT INTO lionu_log_ios_regonly(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, reg_time) VALUES(?,?,?,?,?,?,?,?,?)"
       JDBCutil.executeUpdate(connection, regSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW))
       newReg = 1
     }
@@ -789,10 +789,10 @@ object sparkStreamReConstruction {
     //查找条件优先级 imei->oaid->android_id->mac->ip
     val sqls = mutable.LinkedHashMap[String,String](
       "imei"     ->"SELECT  * FROM log_android_click_data WHERE imei_md5=?",
-              "oaid"     ->"SELECT  * FROM log_android_click_data WHERE oaid=?",
-              "androidid"->"SELECT  * FROM log_android_click_data WHERE androidid_md5=?",
-              "mac"      ->"SELECT  * FROM log_android_click_data WHERE mac_md5=?",
-              "ip"       ->"SELECT  * FROM log_android_click_data WHERE ip=?"
+              "oaid"     ->"SELECT  * FROM lionu_log_android_click_data WHERE oaid=?",
+              "androidid"->"SELECT  * FROM lionu_log_android_click_data WHERE androidid_md5=?",
+              "mac"      ->"SELECT  * FROM lionu_log_android_click_data WHERE mac_md5=?",
+              "ip"       ->"SELECT  * FROM lionu_log_android_click_data WHERE ip=?"
     )
     ////////////////新设备
     val advAscribeInfo:mutable.Map[String,String] = mutable.Map[String,String](deviceMap.toSeq:_*)    //immutable.map 转 mutable.map
@@ -822,7 +822,7 @@ object sparkStreamReConstruction {
       }
     }
     //写入付费日志表
-    val payLogSql = "INSERT INTO log_android_pay(appid, imei_md5, oaid, androidid_md5, mac_md5, ip, plan_id, channel_id, pay_time,pay_amount) VALUES(?,?,?,?,?,?,?,?,?,?)"
+    val payLogSql = "INSERT INTO lionu_log_android_pay(appid, imei_md5, oaid, androidid_md5, mac_md5, ip, plan_id, channel_id, pay_time,pay_amount) VALUES(?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, payLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW, advAscribeInfo("amount")))
     connection.close()
     Map(
@@ -856,7 +856,7 @@ object sparkStreamReConstruction {
     //根据 payStatus 决定如何进行付费统计 新增付费/激活付费/当天付费设备数
     val payStatus = getPayStatus(advAscribeInfo, infoStorageMap)
     //写入付费日志表
-    val payLogSql = "INSERT INTO log_android_pay(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, pay_time, active_time, pay_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
+    val payLogSql = "INSERT INTO lionu_log_android_pay(appid, imei_md5, oaid_md5, androidid_md5, mac_md5, ip, external_ip, plan_id, channel_id, pay_time, active_time, pay_amount) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, payLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("imei"), advAscribeInfo("oaid"), advAscribeInfo("androidid"), advAscribeInfo("mac"), advAscribeInfo("ip"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW, infoStorageMap("activetime"), advAscribeInfo("amount")))
     connection.close()
     Map(
@@ -881,7 +881,7 @@ object sparkStreamReConstruction {
     val payStatus = getPayStatus(advAscribeInfo, infoStorageMap)
 
     //写入付费日志表
-    val payLogSql = "INSERT INTO log_ios_pay(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, pay_time, pay_amount, active_time) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
+    val payLogSql = "INSERT INTO lionu_log_ios_pay(appid, uuid_md5, idfa_md5, model, ip, external_ip, plan_id, channel_id, pay_time, pay_amount, active_time) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
     JDBCutil.executeUpdate(connection, payLogSql, Array(advAscribeInfo("appid"), advAscribeInfo("uuid"), advAscribeInfo("idfa"), advAscribeInfo("deviceModel"), advAscribeInfo("ipAddress"), advAscribeInfo("externalip"), advAscribeInfo("plan_id"), advAscribeInfo("channel_id"), NOW, advAscribeInfo("amount"), infoStorageMap("activetime")))
     connection.close()
     Map(
@@ -907,9 +907,9 @@ object sparkStreamReConstruction {
     var activeOrderBit3 = 0
     var payExistSql = ""
     if(advAscribeInfo("os").toInt == 1){
-      payExistSql = "SELECT * FROM log_android_pay WHERE appid = ? AND oaid_md5 = ?"
+      payExistSql = "SELECT * FROM lionu_log_android_pay WHERE appid = ? AND oaid_md5 = ?"
     } else {
-      payExistSql = "SELECT * FROM log_ios_pay WHERE appid = ? AND uuid_md5 = ?"
+      payExistSql = "SELECT * FROM lionu_log_ios_pay WHERE appid = ? AND uuid_md5 = ?"
     }
     val connection: Connection = JDBCutil.getConnection
     val statPrep = connection.prepareStatement(payExistSql)
@@ -960,7 +960,7 @@ object sparkStreamReConstruction {
       try {
         //println(data)
         //TODO 批量写入和更新基础统计数据
-        val planExistSql = "SELECT * FROM statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
+        val planExistSql = "SELECT * FROM lionu_statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
         val statPrep = connection.prepareStatement(planExistSql)
         //println(data.length)
         for (row <- data) {
@@ -980,15 +980,15 @@ object sparkStreamReConstruction {
               //旧设备
               if(row("newtoday") == 1){
                 //当天首次登录
-                val updateSql = "UPDATE statistics_base SET launch_count=launch_count+?, vibrant_count=vibrant_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
+                val updateSql = "UPDATE lionu_statistics_base SET launch_count=launch_count+?, vibrant_count=vibrant_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
                 JDBCutil.executeUpdate(connection, updateSql, Array(1, 1, row("appid"), row("planid"), TODAY))
               } else {
-                val updateSql = "UPDATE statistics_base SET launch_count=launch_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
+                val updateSql = "UPDATE lionu_statistics_base SET launch_count=launch_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
                 JDBCutil.executeUpdate(connection, updateSql, Array(1, row("appid"), row("planid"), TODAY))
               }
             } else {
               //新设备
-              val updateSql = "UPDATE statistics_base SET launch_count=launch_count+?,active_count=active_count+?,vibrant_count=vibrant_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
+              val updateSql = "UPDATE lionu_statistics_base SET launch_count=launch_count+?,active_count=active_count+?,vibrant_count=vibrant_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
               JDBCutil.executeUpdate(connection, updateSql, Array(1, 1, 1, row("appid"), row("planid"), TODAY))
             }
           } else {
@@ -997,15 +997,15 @@ object sparkStreamReConstruction {
               //旧设备
               if(row("newtoday") == 1){
                 //当天首次登录
-                val insertSql = "INSERT INTO statistics_base(app_id,plan_id,channel_id,launch_count, vibrant_count, stat_date) VALUES(?,?,?,?,?,?)"
+                val insertSql = "INSERT INTO lionu_statistics_base(app_id,plan_id,channel_id,launch_count, vibrant_count, stat_date) VALUES(?,?,?,?,?,?)"
                 JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, 1, TODAY))
               } else {
-                val insertSql = "INSERT INTO statistics_base(app_id,plan_id,channel_id,launch_count, stat_date) VALUES(?,?,?,?,?)"
+                val insertSql = "INSERT INTO lionu_statistics_base(app_id,plan_id,channel_id,launch_count, stat_date) VALUES(?,?,?,?,?)"
                 JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, TODAY))
               }
             } else {
               //新设备
-              val insertSql = "INSERT INTO statistics_base(app_id,plan_id,channel_id,launch_count,active_count, vibrant_count, stat_date) VALUES(?,?,?,?,?,?,?)"
+              val insertSql = "INSERT INTO lionu_statistics_base(app_id,plan_id,channel_id,launch_count,active_count, vibrant_count, stat_date) VALUES(?,?,?,?,?,?,?)"
               JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, 1, 1, TODAY))
             }
           }
@@ -1013,7 +1013,7 @@ object sparkStreamReConstruction {
           //println(row)
           //start留存-旧设备才会有留存数据
           if (row("new") == 0) {
-            val planExistSqlRet = "SELECT * FROM statistics_retention WHERE app_id=? AND plan_id=? AND active_date=? AND retention_days=?"
+            val planExistSqlRet = "SELECT * FROM lionu_statistics_retention WHERE app_id=? AND plan_id=? AND active_date=? AND retention_days=?"
             val statPrepRet = connection.prepareStatement(planExistSqlRet)
             val active_day = new SimpleDateFormat("yyyy-MM-dd").format(new SimpleDateFormat("yyyy-MM-dd").parse(row("activetime").toString))
             val last_launch_day = new SimpleDateFormat("yyyy-MM-dd").format(new SimpleDateFormat("yyyy-MM-dd").parse(row("launchtime").toString))
@@ -1031,10 +1031,10 @@ object sparkStreamReConstruction {
                 val retRes = statPrepRet.executeQuery
                 //查询留存记录表中是否存在记录 有记录更新 无记录写入
                 if (retRes.next()) {
-                  val updateSql = "UPDATE statistics_retention SET retention_count=retention_count+? WHERE app_id=? AND plan_id=? AND active_date=? AND retention_days=?"
+                  val updateSql = "UPDATE lionu_statistics_retention SET retention_count=retention_count+? WHERE app_id=? AND plan_id=? AND active_date=? AND retention_days=?"
                   JDBCutil.executeUpdate(connection, updateSql, Array(1, row("appid"), row("planid"), active_day, retention_days))
                 } else {
-                  val insertSql = "INSERT INTO statistics_retention(app_id,plan_id,channel_id,retention_count,retention_days,active_date) VALUES(?,?,?,?,?,?)"
+                  val insertSql = "INSERT INTO lionu_statistics_retention(app_id,plan_id,channel_id,retention_count,retention_days,active_date) VALUES(?,?,?,?,?,?)"
                   JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, retention_days, active_day))
                 }
               } else {
@@ -1064,7 +1064,7 @@ object sparkStreamReConstruction {
       try {
         //println(data)
         //TODO 批量写入和更新基础统计数据
-        val planExistSql = "SELECT * FROM statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
+        val planExistSql = "SELECT * FROM lionu_statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
         val statPrep = connection.prepareStatement(planExistSql)
 
         for (row <- data) {
@@ -1080,10 +1080,10 @@ object sparkStreamReConstruction {
             //var updatePrep: PreparedStatement = null
             if (row("new") == 0) {
               if(row("newReg") == 0){
-                val updateSql = "UPDATE statistics_base SET reg_count=reg_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
+                val updateSql = "UPDATE lionu_statistics_base SET reg_count=reg_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
                 JDBCutil.executeUpdate(connection, updateSql, Array(1, row("appid"), row("planid"), TODAY))
               } else {
-                val updateSql = "UPDATE statistics_base SET reg_count=reg_count+?, onlyreg_count=onlyreg_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
+                val updateSql = "UPDATE lionu_statistics_base SET reg_count=reg_count+?, onlyreg_count=onlyreg_count+? WHERE app_id=? AND plan_id=? AND stat_date=?"
                 JDBCutil.executeUpdate(connection, updateSql, Array(1, 1, row("appid"), row("planid"), TODAY))
               }
             } else {
@@ -1094,10 +1094,10 @@ object sparkStreamReConstruction {
             //如果该计划没有当天的统计数据  则写入一条统计记录
             //这里的逻辑应该是执行不到的 因为激活上报接口一定会先写入一条记录
             if (row("new") == 0) {
-              val insertSql = "INSERT INTO statistics_base(app_id,plan_id,channel_id,reg_count,stat_date) VALUES(?,?,?,?,?)"
+              val insertSql = "INSERT INTO lionu_statistics_base(app_id,plan_id,channel_id,reg_count,stat_date) VALUES(?,?,?,?,?)"
               JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, TODAY))
             } else {
-              val insertSql = "INSERT INTO statistics_base(app_id,plan_id,channel_id,launch_count,reg_count,stat_date) VALUES(?,?,?,?,?,?)"
+              val insertSql = "INSERT INTO lionu_statistics_base(app_id,plan_id,channel_id,launch_count,reg_count,stat_date) VALUES(?,?,?,?,?,?)"
               JDBCutil.executeUpdate(connection, insertSql, Array(row("appid"), row("planid"), row("channelid"), 1, 1, TODAY))
             }
           }
@@ -1121,10 +1121,10 @@ object sparkStreamReConstruction {
       val connection: Connection = JDBCutil.getConnection
       try {
         //写 statistics_pay 表
-        val planExistSql = "SELECT * FROM statistics_pay WHERE app_id=? AND plan_id=? AND active_date=? AND pay_days=?"
+        val planExistSql = "SELECT * FROM lionu_statistics_pay WHERE app_id=? AND plan_id=? AND active_date=? AND pay_days=?"
         val statPrep = connection.prepareStatement(planExistSql)
         //写 statistics_base 表
-        val baseExistSql = "SELECT * FROM statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
+        val baseExistSql = "SELECT * FROM lionu_statistics_base WHERE app_id=? AND plan_id=? AND stat_date=?"
         val basePrep = connection.prepareStatement(baseExistSql)
         for (row <- data) {
           //println(row)
@@ -1171,7 +1171,7 @@ object sparkStreamReConstruction {
             val update_value_plus = update_value ++ Array(row("amount"), 1, row("appid"), row("planid"), active_date, pay_days)
             //println(update_key_str)
             //println(update_value_plus)
-            val updateSql = "UPDATE statistics_pay SET " + update_key_str + " WHERE app_id=? AND plan_id=? AND active_date=? AND pay_days=?"
+            val updateSql = "UPDATE lionu_statistics_pay SET " + update_key_str + " WHERE app_id=? AND plan_id=? AND active_date=? AND pay_days=?"
             JDBCutil.executeUpdate(connection,updateSql, update_value_plus.toArray)
           } else {
             //新增付费统计
@@ -1180,7 +1180,7 @@ object sparkStreamReConstruction {
             val placeholder = Array.fill(insert_key.length)("?").mkString(",")
             val insert_value = update_value ++ Array(row("appid"), row("planid"), row("channelid"), row("amount"), 1, pay_days, active_date, TODAY)
 
-            val insertSql = "INSERT INTO statistics_pay(" + insert_key_str + ") VALUES(" + placeholder + ")"
+            val insertSql = "INSERT INTO lionu_statistics_pay(" + insert_key_str + ") VALUES(" + placeholder + ")"
             JDBCutil.executeUpdate(connection,insertSql, insert_value.toArray)
           }
           //end付费数据更新和添加
@@ -1192,7 +1192,7 @@ object sparkStreamReConstruction {
           val baseRes = basePrep.executeQuery
           if (baseRes.next()) {
             //更新 statistics_base 表付费统计
-            val updateSql = "UPDATE statistics_base SET pay_amount=pay_amount+?,pay_count=pay_count+1 WHERE app_id=? AND plan_id=? AND stat_date=?"
+            val updateSql = "UPDATE lionu_statistics_base SET pay_amount=pay_amount+?,pay_count=pay_count+1 WHERE app_id=? AND plan_id=? AND stat_date=?"
             JDBCutil.executeUpdate(connection, updateSql, Array(row("amount"), row("appid"), row("planid"), TODAY))
           } else {
             //未找到相关激活记录
@@ -1236,7 +1236,7 @@ object sparkStreamReConstruction {
     if(appExistInRedis == null){
       //若redis未查到 则查询mysql 同时需要刷新 redis
       need_refresh_redis = 1
-      val planExistSql = "SELECT app_step,app_event FROM u_app WHERE id=?"
+      val planExistSql = "SELECT app_step,app_event FROM lionu_u_app WHERE id=?"
       connection = JDBCutil.getConnection
       val statPrep = connection.prepareStatement(planExistSql)
       statPrep.setString(1, row("appid").toString)
